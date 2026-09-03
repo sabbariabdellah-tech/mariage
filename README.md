@@ -1,10 +1,22 @@
-V3 - Messages WhatsApp gratuits
+# Gestion Invités Mariage — V3 Online
 
-1. Dans Supabase > SQL Editor, exécuter le contenu de supabase_messages_migration.sql une seule fois.
-2. Remplacer index.html dans le dépôt GitHub Pages par cette nouvelle version.
-3. Faire Commit changes et attendre le redéploiement GitHub Pages.
-4. Dans l'application, ouvrir Messages, saisir le lien Google Maps et personnaliser le modèle.
-5. Cliquer sur WhatsApp pour ouvrir le message prérempli, puis marquer Envoyé après l'envoi réel.
+V3 conserve l'interface de la V2 et ajoute une base de données cloud partagée.
 
-Variables disponibles dans le modèle : {prenom}, {nom}, {famille}, {localisation}.
-Le numéro 06/07 marocain est automatiquement converti au format international +212 pour WhatsApp.
+## Architecture
+- Frontend : HTML/CSS/JavaScript, compatible GitHub Pages.
+- Données : Supabase Postgres + Auth.
+- Synchronisation : les invités, l'historique et le placement des tables sont stockés dans `wedding_data`.
+- Sécurité : Row Level Security limite les données à l'utilisateur connecté.
+
+## Mise en ligne gratuite
+1. Créer un projet Supabase.
+2. Dans Supabase > SQL Editor, exécuter `supabase_schema.sql`.
+3. Récupérer dans Supabase > Settings > API : Project URL et `anon` public key.
+4. Ouvrir l'application et cliquer `Configuration Supabase` pour enregistrer ces deux valeurs.
+5. Créer le compte depuis l'application.
+6. Publier `index.html` sur GitHub Pages.
+
+Ne jamais utiliser la `service_role key` dans le navigateur.
+
+## Important
+La première connexion sur un navigateur contenant encore les données V2 peut proposer automatiquement d'importer ces données si le compte Supabase est vide.
