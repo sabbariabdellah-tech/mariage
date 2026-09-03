@@ -36,7 +36,7 @@
 <div class="app">
 <aside class="side"><div class="logo">💍 <span>Mariage</span></div><div class="nav">
 <button data-section="dashboard">🏠 Dashboard</button><button data-section="invites">👥 Invités</button>
-<button data-section="transport">🚗 Transport</button><button data-section="messages">💬 Messages</button><button data-section="tables">🍽️ Tables</button>
+<button data-section="families">👪 Familles</button><button data-section="transport">🚗 Transport</button><button data-section="messages">💬 Messages</button><button data-section="tables">🍽️ Tables</button>
 <button data-section="stats">📊 Statistiques</button><button data-section="history">📜 Historique</button>
 </div></aside>
 <main class="main">
@@ -57,6 +57,13 @@
 <select id="filterCar" onchange="renderInvites()"><option value="">Tous transports</option><option value="yes">Motorisé</option><option value="no">Non motorisé</option></select>
 </div>
 <div class="tablewrap"><table><thead><tr><th>Nom</th><th>Famille</th><th>Côté</th><th>Catégorie</th><th>Sexe</th><th>Type</th><th>Présence</th><th>Transport</th><th>WhatsApp</th><th>Actions</th></tr></thead><tbody id="inviteRows"></tbody></table></div>
+</section>
+
+<section id="families" class="section">
+<div class="top"><h1>Familles</h1><button class="btn gold" onclick="openFamily()">+ Ajouter une famille</button></div>
+<div class="toolbar"><input id="familySearch" placeholder="Rechercher une famille ou un membre..." oninput="renderFamilies()"><select id="familySideFilter" onchange="renderFamilies()"><option value="">Tous les côtés</option><option>Ma famille</option><option>Famille de ma femme</option></select></div>
+<div class="grid" id="familyMetrics"></div><div style="height:15px"></div>
+<div class="tablewrap"><table><thead><tr><th>Famille</th><th>Côté</th><th>Membres</th><th>Principal</th><th>Conducteur</th><th>Passagers affectés</th><th>Actions</th></tr></thead><tbody id="familyRows"></tbody></table></div>
 </section>
 
 <section id="transport" class="section">
@@ -216,7 +223,8 @@ function openInvite(g=null){
 function closeModal(){document.getElementById('modal').classList.remove('open')}
 document.getElementById('inviteForm').onsubmit=e=>{
  e.preventDefault(); const eid=document.getElementById('eid').value;
- const g={id:eid||id(),nom:nom.value.trim(),prenom:prenom.value.trim(),famille:famille.value.trim(),cote:cote.value,cat:cat.value,sex:sex.value,type:type.value,age:type.value==='Enfant'&&age.value!==''?+age.value:null,presence:presence.value,motor:motor.value,seats:motor.value==='yes'?(+seats.value||0):0,phone:phone.value,notes:notes.value};
+ const oldGuest=eid?guests.find(x=>x.id===eid):null;
+ const g={...(oldGuest||{}),id:eid||id(),nom:nom.value.trim(),prenom:prenom.value.trim(),famille:famille.value.trim(),cote:cote.value,cat:cat.value,sex:sex.value,type:type.value,age:type.value==='Enfant'&&age.value!==''?+age.value:null,presence:presence.value,motor:motor.value,seats:motor.value==='yes'?(+seats.value||0):0,phone:phone.value,notes:notes.value};
  if(eid){const i=guests.findIndex(x=>x.id===eid);guests[i]=g;log(`Modification : ${g.prenom} ${g.nom}`)}else{guests.push(g);log(`Ajout : ${g.prenom} ${g.nom}`)}
  save();closeModal();renderAll();
 };
@@ -303,6 +311,24 @@ function renderStats(){
  const c=guests.filter(g=>g.presence==='Confirmé'), eqv=c.reduce((s,g)=>s+eq(g),0),families=[...new Set(c.map(g=>g.famille))];
  statsGrid.innerHTML=[['Invités total',guests.length],['Confirmés',c.length],['En attente',guests.filter(g=>g.presence==='En attente').length],['Refusés',guests.filter(g=>g.presence==='Refusé').length],['Hommes',c.filter(g=>g.sex==='Homme').length],['Femmes',c.filter(g=>g.sex==='Femme').length],['Familles',families.length],['Équivalents tables',eqv]].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');
 }
+
+function renderFamilies(){
+ if(!document.getElementById('familyRows'))return;
+ const q=(document.getElementById('familySearch')?.value||'').toLowerCase();
+ const sf=document.getElementById('familySideFilter')?.value||'';
+ const grouped=new Map();
+ guests.filter(g=>g.familyId).forEach(g=>{if(!grouped.has(g.familyId))grouped.set(g.familyId,[]);grouped.get(g.familyId).push(g)});
+ let families=[...grouped.entries()].map(([fid,members])=>({fid,members,principal:members.find(g=>g.familyRole==='principal')||members[0]}));
+ families=families.filter(f=>(!sf||f.principal.cote===sf)&&(!q||(`${f.principal.famille} `+f.members.map(m=>m.prenom+' '+m.nom).join(' ')).toLowerCase().includes(q)));
+ const totalMembers=families.reduce((n,f)=>n+f.members.length,0),motorized=families.filter(f=>f.members.some(m=>m.motor==='yes')).length;
+ familyMetrics.innerHTML=[['Familles',families.length],['Membres',totalMembers],['Avec voiture',motorized],['Sans voiture',families.length-motorized]].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');
+ familyRows.innerHTML=families.length?families.map(f=>{
+  const d=f.members.find(m=>m.familyRole==='principal'&&m.motor==='yes')||f.members.find(m=>m.motor==='yes');
+  const assigned=d?(d.passengers||[]).map(id=>guests.find(g=>g.id===id)).filter(Boolean):[];
+  const memberNames=f.members.map(m=>`${m.prenom} ${m.nom}${m.familyRole==='principal'?' ⭐':''}`).join(', ');
+  return `<tr><td><b>${escapeHtml(f.principal.famille)}</b></td><td>${escapeHtml(f.principal.cote)}</td><td>${f.members.length}<div class="muted" style="white-space:normal;max-width:360px">${escapeHtml(memberNames)}</div></td><td>${escapeHtml(f.principal.prenom+' '+f.principal.nom)}</td><td>${d?`🚗 ${escapeHtml(d.prenom+' '+d.nom)} (${d.seats} places)`:'—'}</td><td>${assigned.length?escapeHtml(assigned.map(x=>x.prenom+' '+x.nom).join(', ')):'—'}</td><td><button class="btn light" onclick="openFamily('${f.fid}')">Modifier la famille</button></td></tr>`
+ }).join(''):'<tr><td colspan="7" class="empty">Aucune famille enregistrée</td></tr>';
+}
 function renderHistory(){historyList.innerHTML=history.map(h=>`<div style="padding:10px 0;border-bottom:1px solid #eee"><b>${h.msg}</b><div class="muted">${h.date}</div></div>`).join('')||'<div class="empty">Aucune opération</div>'}
 
 function familyMembers(fid){return guests.filter(g=>g.familyId===fid)}
@@ -354,21 +380,32 @@ document.getElementById('familyForm').onsubmit=e=>{
  let invalidChild=false;
  document.querySelectorAll('.child-row').forEach(row=>{const n=row.querySelector('.child-nom').value.trim(),p=row.querySelector('.child-prenom').value.trim(),a=row.querySelector('.child-age').value;if((n&&!p)||(!n&&p)||(n&&p&&a===''))invalidChild=true});
  if(invalidChild){alert("Pour chaque enfant, renseignez le nom, le prénom et l’âge, ou supprimez la ligne.");return}
- const oldIds=familyMembers(fid).map(g=>g.id); cleanFamilyPassengerRefs(oldIds);
+ const oldMembers=familyMembers(fid);
+ const oldById=new Map(oldMembers.map(g=>[g.id,g]));
  guests=guests.filter(g=>g.familyId!==fid);
  const base={famille:name,cote:familySide.value,cat:familyCat.value,familyId:fid};
- const principal={...base,id:principalId.value||id(),familyRole:'principal',nom:principalNom.value.trim(),prenom:principalPrenom.value.trim(),sex:principalSex.value,type:'Adulte',presence:principalPresence.value,motor:principalMotor.value,seats:principalMotor.value==='yes'?(+principalSeats.value||0):0,phone:principalPhone.value.trim(),notes:''};
+ const principalKey=principalId.value||id();
+ const principal={...(oldById.get(principalKey)||{}),...base,id:principalKey,familyRole:'principal',nom:principalNom.value.trim(),prenom:principalPrenom.value.trim(),sex:principalSex.value,type:'Adulte',presence:principalPresence.value,motor:principalMotor.value,seats:principalMotor.value==='yes'?(+principalSeats.value||0):0,phone:principalPhone.value.trim(),notes:''};
  const members=[principal];
  if(spouseNom.value.trim()||spousePrenom.value.trim()){
-  members.push({...base,id:spouseId.value||id(),familyRole:'conjoint',nom:spouseNom.value.trim(),prenom:spousePrenom.value.trim(),sex:spouseSex.value,type:'Adulte',presence:spousePresence.value,motor:spouseMotor.value,seats:spouseMotor.value==='yes'?(+spouseSeats.value||0):0,phone:spousePhone.value.trim(),notes:''});
+  const spouseKey=spouseId.value||id();
+  members.push({...((oldById.get(spouseKey)||{})),...base,id:spouseKey,familyRole:'conjoint',nom:spouseNom.value.trim(),prenom:spousePrenom.value.trim(),sex:spouseSex.value,type:'Adulte',presence:spousePresence.value,motor:spouseMotor.value,seats:spouseMotor.value==='yes'?(+spouseSeats.value||0):0,phone:spousePhone.value.trim(),notes:''});
  }
- document.querySelectorAll('.child-row').forEach(row=>{const n=row.querySelector('.child-nom').value.trim(),p=row.querySelector('.child-prenom').value.trim();if(!n&&!p)return;members.push({...base,id:row.querySelector('.child-id').value||id(),familyRole:'enfant',nom:n,prenom:p,age:+row.querySelector('.child-age').value,sex:row.querySelector('.child-sex').value,type:'Enfant',presence:row.querySelector('.child-presence').value,motor:'no',seats:0,phone:'',notes:''})});
- guests.push(...members); const tr=saveFamilyTransport(fid); save();
+ document.querySelectorAll('.child-row').forEach(row=>{const n=row.querySelector('.child-nom').value.trim(),p=row.querySelector('.child-prenom').value.trim();if(!n&&!p)return;const childKey=row.querySelector('.child-id').value||id();members.push({...((oldById.get(childKey)||{})),...base,id:childKey,familyRole:'enfant',nom:n,prenom:p,age:+row.querySelector('.child-age').value,sex:row.querySelector('.child-sex').value,type:'Enfant',presence:row.querySelector('.child-presence').value,motor:'no',seats:0,phone:'',notes:''})});
+ guests.push(...members);
  const wasEdit=!!familyIdField.value;
+ let tr=null;
+ if(!wasEdit) tr=saveFamilyTransport(fid);
+ save();
  let msg=`${wasEdit?'Modification':'Création'} de la famille : ${name} (${members.length} membre(s))`;
- if(tr.total){msg+=tr.driver?` — transport automatique : ${tr.assigned}/${tr.total} passager(s) avec ${tr.driver.prenom} ${tr.driver.nom}`:' — aucun conducteur familial disponible'}
+ if(tr&&tr.total){msg+=tr.driver?` — transport automatique : ${tr.assigned}/${tr.total} passager(s) avec ${tr.driver.prenom} ${tr.driver.nom}`:' — aucun conducteur familial disponible'}
  log(msg); closeFamily(); renderAll();
- if(tr.overflow)alert(`La famille « ${name} » compte ${tr.total} passager(s) non motorisé(s), mais le conducteur familial n'a que ${tr.driver.seats} place(s). ${tr.overflow} passager(s) restent sans solution.`);
+ if(tr&&tr.overflow)alert(`La famille « ${name} » compte ${tr.total} passager(s) non motorisé(s), mais le conducteur familial n'a que ${tr.driver.seats} place(s). ${tr.overflow} passager(s) restent sans solution.`);
+ if(wasEdit){
+  const drivers=members.filter(g=>g.motor==='yes'&&(g.passengers||[]).length);
+  const invalid=drivers.filter(d=>!transportUsage(d.passengers||[],d.seats).valid);
+  if(invalid.length)alert(`Modification enregistrée. Les passagers existants ont été conservés. Attention : ${invalid.map(d=>d.prenom+' '+d.nom).join(', ')} dépasse maintenant la capacité normale/tolérance. Ajustez manuellement dans Transport si nécessaire.`);
+ }
 };
 
 
@@ -385,7 +422,7 @@ async function loadOnlineData(){if(!sb||!currentUser)return;const {data,error}=a
  else {save()}}
 async function boot(){initSupabase();if(!sb){setOnline(false);return}const {data}=await sb.auth.getSession();if(data.session)await afterLogin(data.session.user);else setOnline(false)}
 
-function renderAll(){renderDashboard();renderInvites();renderTransport();renderMessages();renderTables();renderStats();renderHistory()}
+function renderAll(){renderDashboard();renderInvites();renderFamilies();renderTransport();renderMessages();renderTables();renderStats();renderHistory()}
 boot();
 
 </script>
