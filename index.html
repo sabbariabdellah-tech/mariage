@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mariage — Gestion des invités</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:#f6f7fb;color:#202332}
+.app{display:flex;min-height:100vh}.side{width:245px;background:#20243a;color:#fff;padding:22px 14px;position:fixed;inset:0 auto 0 0}
+.logo{font-size:21px;font-weight:800;padding:8px 12px 24px}.logo span{color:#e8b86a}
+.nav button{display:block;width:100%;border:0;background:transparent;color:#d9dced;text-align:left;padding:12px 14px;border-radius:10px;margin:4px 0;cursor:pointer;font-size:14px}.nav button.active,.nav button:hover{background:#343a58;color:white}
+.main{margin-left:245px;flex:1;padding:28px;max-width:1600px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}.top h1{margin:0;font-size:26px}.btn{border:0;border-radius:9px;padding:10px 15px;cursor:pointer;font-weight:700;background:#2e3554;color:#fff}.btn.gold{background:#c9994e}.btn.red{background:#bd4b55}.btn.light{background:#fff;color:#30364d;border:1px solid #ddd}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.card{background:white;border:1px solid #e6e7ed;border-radius:14px;padding:18px;box-shadow:0 2px 8px #00000008}.metric{font-size:28px;font-weight:800;margin-top:7px}.muted{color:#7b8195;font-size:13px}.section{display:none}.section.active{display:block}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}.toolbar input,.toolbar select,.form input,.form select{padding:10px;border:1px solid #d9dce5;border-radius:8px;background:#fff}.toolbar input{min-width:240px}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}.tablewrap{overflow:auto;border:1px solid #e5e6ec;border-radius:12px}th,td{padding:11px 12px;border-bottom:1px solid #eee;text-align:left;font-size:13px;white-space:nowrap}th{background:#f1f2f7;color:#565d73}.badge{padding:4px 8px;border-radius:20px;background:#eef0f7;font-size:11px}.badge.ok{background:#e6f5eb;color:#267343}.badge.no{background:#fae9ea;color:#9d3038}.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:20px}.modal.open{display:flex}.dialog{background:#fff;border-radius:16px;width:min(700px,100%);padding:22px;max-height:90vh;overflow:auto}.child-row{background:#fafbfe}.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form label{font-size:12px;font-weight:700;color:#555d72}.form label>*{display:block;width:100%;margin-top:5px}.full{grid-column:1/-1}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.tablecards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}.tablecard h3{margin:0 0 6px}.person{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee}.danger{color:#b33840}.empty{padding:35px;text-align:center;color:#777}.progress{height:8px;background:#eee;border-radius:10px;overflow:hidden}.progress i{display:block;height:100%;background:#c9994e}.note{background:#fff8ea;border:1px solid #f1ddb6;padding:12px;border-radius:10px;font-size:13px;margin-bottom:15px}
+@media(max-width:900px){.side{width:70px}.logo{font-size:0}.logo span{font-size:20px}.nav button{font-size:0;text-align:center}.nav button:first-letter{font-size:18px}.main{margin-left:70px;padding:18px}.grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.grid,.form{grid-template-columns:1fr}.main{padding:12px}.side{display:none}.main{margin-left:0}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+#authScreen{position:fixed;inset:0;background:#20243a;display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999}
+.authbox{background:#fff;width:min(430px,100%);border-radius:18px;padding:26px;box-shadow:0 20px 60px #0005}.authbox h2{margin:0 0 6px}.authbox p{color:#6f7588;font-size:13px}.authbox input{width:100%;padding:12px;border:1px solid #d9dce5;border-radius:9px;margin:6px 0 12px}.auth-actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:12px;margin-top:10px;color:#687085}.onlinebar{position:fixed;right:18px;bottom:18px;background:#fff;border:1px solid #ddd;border-radius:10px;padding:8px 12px;box-shadow:0 5px 20px #0001;font-size:12px;z-index:20}.onlinebar b{color:#267343}.logout{margin-left:8px;border:0;background:none;cursor:pointer;text-decoration:underline}
+</style></head>
+<body>
+<div id="authScreen"><div class="authbox">
+<h2>💍 Gestion Mariage</h2><p>Version V3 en ligne — les données sont partagées entre vos appareils.</p>
+<label>Email<input id="authEmail" type="email" placeholder="votre@email.com"></label>
+<label>Mot de passe<input id="authPassword" type="password" placeholder="••••••••"></label>
+<div class="auth-actions"><button class="btn gold" onclick="signIn()">Se connecter</button><button class="btn light" onclick="signUp()">Créer le compte</button></div>
+<p id="authMsg" class="status">Configurez Supabase dans le bouton « Configuration » si nécessaire.</p>
+<button class="btn light" onclick="openConfig()">⚙️ Configuration Supabase</button>
+</div></div>
+<div class="onlinebar" id="onlineBar">🔴 Hors ligne</div>
+<div class="modal" id="configModal"><div class="dialog"><h2>Configuration Supabase</h2><p class="muted">Ces deux valeurs peuvent être publiques dans une application web. N'utilisez jamais la <b>service_role key</b>.</p><label style="display:block;font-size:12px;font-weight:700">Project URL<input id="sbUrl" style="width:100%;padding:10px;margin:5px 0 12px;border:1px solid #d9dce5;border-radius:8px" placeholder="https://xxxx.supabase.co"></label><label style="display:block;font-size:12px;font-weight:700">Anon public key<input id="sbKey" style="width:100%;padding:10px;margin:5px 0 12px;border:1px solid #d9dce5;border-radius:8px" placeholder="eyJ..."></label><div class="actions"><button class="btn light" onclick="closeConfig()">Annuler</button><button class="btn gold" onclick="saveConfig()">Enregistrer</button></div></div></div>
+<div class="app">
+<aside class="side"><div class="logo">💍 <span>Mariage</span></div><div class="nav">
+<button data-section="dashboard">🏠 Dashboard</button><button data-section="invites">👥 Invités</button>
+<button data-section="transport">🚗 Transport</button><button data-section="tables">🍽️ Tables</button>
+<button data-section="stats">📊 Statistiques</button><button data-section="history">📜 Historique</button>
+</div></aside>
+<main class="main">
+<section id="dashboard" class="section active">
+<div class="top"><h1>Dashboard</h1><button class="btn gold" onclick="openInvite()">+ Ajouter un invité</button></div>
+<div class="grid" id="metrics"></div><div style="height:15px"></div><div class="card"><h3>Dernières opérations</h3><div id="dashHistory"></div></div>
+</section>
+
+<section id="invites" class="section">
+<div class="top"><h1>Invités</h1><div><button class="btn light" onclick="openFamily()">+ Ajouter une famille</button> <button class="btn gold" onclick="openInvite()">+ Ajouter</button></div></div>
+<div class="toolbar">
+<input id="search" placeholder="Rechercher nom, prénom, famille..." oninput="renderInvites()">
+<select id="filterSide" onchange="renderInvites()"><option value="">Tous les côtés</option><option>Ma famille</option><option>Famille de ma femme</option></select>
+<select id="filterCat" onchange="renderInvites()"><option value="">Toutes catégories</option><option>Famille</option><option>Ami</option><option>Voisin</option></select>
+<select id="filterType" onchange="renderInvites()"><option value="">Adulte + Enfant</option><option>Adulte</option><option>Enfant</option></select>
+<select id="filterSex" onchange="renderInvites()"><option value="">Hommes + Femmes</option><option>Homme</option><option>Femme</option></select>
+<select id="filterPresence" onchange="renderInvites()"><option value="">Toutes présences</option><option>Confirmé</option><option>En attente</option><option>Refusé</option></select>
+<select id="filterCar" onchange="renderInvites()"><option value="">Tous transports</option><option value="yes">Motorisé</option><option value="no">Non motorisé</option></select>
+</div>
+<div class="tablewrap"><table><thead><tr><th>Nom</th><th>Famille</th><th>Côté</th><th>Catégorie</th><th>Sexe</th><th>Type</th><th>Présence</th><th>Transport</th><th>Actions</th></tr></thead><tbody id="inviteRows"></tbody></table></div>
+</section>
+
+<section id="transport" class="section">
+<div class="top"><h1>Transport</h1></div>
+<div class="note">Associe les invités non motorisés aux conducteurs. Une voiture ne peut pas dépasser sa capacité.</div>
+<div class="grid" id="transportMetrics"></div><div style="height:15px"></div><div class="card"><div class="tablewrap"><table><thead><tr><th>Conducteur</th><th>Famille</th><th>Places</th><th>Passagers</th><th>Places restantes</th><th>Action</th></tr></thead><tbody id="driverRows"></tbody></table></div></div>
+</section>
+
+<section id="tables" class="section">
+<div class="top"><h1>Tables</h1><div><button class="btn light" onclick="clearTables()">Effacer placement</button> <button class="btn gold" onclick="generateTables()">✨ Générer automatiquement</button></div></div>
+<div class="note">Règles : hommes et femmes séparés • 10 équivalents maximum par table • enfant = 0,5 • priorité au regroupement familial puis au côté.</div>
+<div id="tablesArea" class="tablecards"></div>
+</section>
+
+<section id="stats" class="section"><div class="top"><h1>Statistiques</h1></div><div class="grid" id="statsGrid"></div></section>
+<section id="history" class="section"><div class="top"><h1>Historique</h1></div><div class="card"><div id="historyList"></div></div></section>
+</main></div>
+
+<div class="modal" id="modal"><div class="dialog"><h2 id="modalTitle">Ajouter un invité</h2><form id="inviteForm" class="form">
+<input type="hidden" id="eid"><label>Nom<input id="nom" required></label><label>Prénom<input id="prenom" required></label>
+<label>Famille<input id="famille" required></label><label>Côté<select id="cote"><option>Ma famille</option><option>Famille de ma femme</option></select></label>
+<label>Catégorie<select id="cat"><option>Famille</option><option>Ami</option><option>Voisin</option></select></label>
+<label>Sexe<select id="sex"><option>Homme</option><option>Femme</option></select></label>
+<label>Type<select id="type"><option>Adulte</option><option>Enfant</option></select></label>
+<label>Présence<select id="presence"><option>Confirmé</option><option>En attente</option><option>Refusé</option></select></label>
+<label>Motorisé<select id="motor"><option value="yes">Oui</option><option value="no">Non</option></select></label>
+<label>Places voiture<input id="seats" type="number" min="1" value="4"></label>
+<label>Téléphone<input id="phone"></label><label class="full">Notes<input id="notes"></label>
+<div class="actions full"><button type="button" class="btn light" onclick="closeModal()">Annuler</button><button class="btn gold">Enregistrer</button></div>
+</form></div></div>
+
+<div class="modal" id="familyModal"><div class="dialog"><h2 id="familyModalTitle">Ajouter une famille</h2>
+<form id="familyForm" class="form">
+<input type="hidden" id="familyIdField">
+<label class="full">Nom de la famille<input id="familyName" required placeholder="Ex. Famille El Amrani"></label>
+<label>Côté<select id="familySide"><option>Ma famille</option><option>Famille de ma femme</option></select></label>
+<label>Catégorie<select id="familyCat"><option>Famille</option><option>Ami</option><option>Voisin</option></select></label>
+<div class="full" style="border-top:1px solid #eee;padding-top:12px"><h3 style="margin:0 0 10px">👨 Personne principale</h3></div>
+<input type="hidden" id="principalId">
+<label>Nom<input id="principalNom" required></label><label>Prénom<input id="principalPrenom" required></label>
+<label>Sexe<select id="principalSex"><option>Homme</option><option>Femme</option></select></label>
+<label>Présence<select id="principalPresence"><option>Confirmé</option><option>En attente</option><option>Refusé</option></select></label>
+<label>Motorisé<select id="principalMotor"><option value="yes">Oui</option><option value="no">Non</option></select></label>
+<label>Places voiture<input id="principalSeats" type="number" min="1" value="4"></label>
+<label class="full">Téléphone<input id="principalPhone"></label>
+<div class="full" style="border-top:1px solid #eee;padding-top:12px"><h3 style="margin:0 0 10px">👩 Conjoint(e) <span class="muted">(facultatif)</span></h3></div>
+<input type="hidden" id="spouseId">
+<label>Nom<input id="spouseNom"></label><label>Prénom<input id="spousePrenom"></label>
+<label>Sexe<select id="spouseSex"><option>Femme</option><option>Homme</option></select></label>
+<label>Présence<select id="spousePresence"><option>Confirmé</option><option>En attente</option><option>Refusé</option></select></label>
+<label>Motorisé<select id="spouseMotor"><option value="no">Non</option><option value="yes">Oui</option></select></label>
+<label>Places voiture<input id="spouseSeats" type="number" min="1" value="4"></label>
+<label class="full">Téléphone<input id="spousePhone"></label>
+<div class="full" style="border-top:1px solid #eee;padding-top:12px"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">🧒 Enfants</h3><button type="button" class="btn light" onclick="addChildRow()">+ Ajouter un enfant</button></div><div id="childrenRows" style="margin-top:10px"></div></div>
+<div class="actions full"><button type="button" class="btn light" onclick="closeFamily()">Annuler</button><button class="btn gold">Enregistrer la famille</button></div>
+</form></div></div>
+
+<script>
+const KEY='mariage_invites_v1', HIST='mariage_history_v1', TABLES='mariage_tables_v1', CFG='mariage_supabase_config_v3';
+const DEFAULT_SUPABASE_URL='https://ycmcwrdfyfrzlptzrrjh.supabase.co';
+const DEFAULT_SUPABASE_KEY='sb_publishable_QXqifpTaIgbiHCygRUfwrQ_i37JtO2w';
+let guests=JSON.parse(localStorage.getItem(KEY)||'[]'), history=JSON.parse(localStorage.getItem(HIST)||'[]');
+let tablePlan=JSON.parse(localStorage.getItem(TABLES)||'[]');
+let sb=null, currentUser=null, syncTimer=null;
+const localBackup={guests:[...guests],history:[...history],tablePlan:[...tablePlan]};
+
+function getConfig(){try{const saved=JSON.parse(localStorage.getItem(CFG)||'{}');return {url:saved.url||DEFAULT_SUPABASE_URL,key:saved.key||DEFAULT_SUPABASE_KEY}}catch(e){return {url:DEFAULT_SUPABASE_URL,key:DEFAULT_SUPABASE_KEY}}}
+function initSupabase(){const c=getConfig(); if(!c.url||!c.key){sb=null;return false} try{sb=window.supabase.createClient(c.url,c.key);return true}catch(e){sb=null;return false}}
+function setOnline(ok){onlineBar.innerHTML=ok?'🟢 <b>En ligne</b><button class="logout" onclick="signOut()">Déconnexion</button>':'🔴 Hors ligne'}
+function save(){localStorage.setItem(KEY,JSON.stringify(guests));localStorage.setItem(HIST,JSON.stringify(history));localStorage.setItem(TABLES,JSON.stringify(tablePlan));scheduleSync()}
+function scheduleSync(){if(!sb||!currentUser)return;clearTimeout(syncTimer);syncTimer=setTimeout(syncAll,500)}
+async function syncAll(){if(!sb||!currentUser)return;const payload={user_id:currentUser.id,guests,history,table_plan:tablePlan,updated_at:new Date().toISOString()};const {error}=await sb.from('wedding_data').upsert(payload,{onConflict:'user_id'});if(error)console.error(error)}
+function log(msg){history.unshift({date:new Date().toLocaleString('fr-FR'),msg});history=history.slice(0,100);save();}
+function eq(g){return g.type==='Enfant'?.5:1}
+function id(){return crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random()}
+
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>show(b.dataset.section));
+function show(s){document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));document.getElementById(s).classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.section===s));renderAll()}
+document.querySelector('.nav button').classList.add('active');
+
+function openInvite(g=null){
+ document.getElementById('modal').classList.add('open'); document.getElementById('modalTitle').textContent=g?'Modifier un invité':'Ajouter un invité';
+ const fields={eid:g?.id||'',nom:g?.nom||'',prenom:g?.prenom||'',famille:g?.famille||'',cote:g?.cote||'Ma famille',cat:g?.cat||'Famille',sex:g?.sex||'Homme',type:g?.type||'Adulte',presence:g?.presence||'Confirmé',motor:g?.motor||'yes',seats:g?.seats||4,phone:g?.phone||'',notes:g?.notes||''};
+ Object.entries(fields).forEach(([k,v])=>document.getElementById(k).value=v);
+}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+document.getElementById('inviteForm').onsubmit=e=>{
+ e.preventDefault(); const eid=document.getElementById('eid').value;
+ const g={id:eid||id(),nom:nom.value.trim(),prenom:prenom.value.trim(),famille:famille.value.trim(),cote:cote.value,cat:cat.value,sex:sex.value,type:type.value,presence:presence.value,motor:motor.value,seats:+seats.value||0,phone:phone.value,notes:notes.value};
+ if(eid){const i=guests.findIndex(x=>x.id===eid);guests[i]=g;log(`Modification : ${g.prenom} ${g.nom}`)}else{guests.push(g);log(`Ajout : ${g.prenom} ${g.nom}`)}
+ save();closeModal();renderAll();
+};
+function del(g){if(confirm(`Supprimer ${g.prenom} ${g.nom} ?\\nCette action est enregistrée dans l'historique.`)){guests=guests.filter(x=>x.id!==g.id);tablePlan=tablePlan.map(t=>({...t,people:t.people.filter(p=>p!==g.id)}));save();log(`Suppression : ${g.prenom} ${g.nom}`);renderAll()}}
+function renderInvites(){
+ let a=[...guests],q=(search.value||'').toLowerCase();
+ a=a.filter(g=>(!q||`${g.nom} ${g.prenom} ${g.famille}`.toLowerCase().includes(q))&&(!filterSide.value||g.cote===filterSide.value)&&(!filterCat.value||g.cat===filterCat.value)&&(!filterType.value||g.type===filterType.value)&&(!filterSex.value||g.sex===filterSex.value)&&(!filterPresence.value||g.presence===filterPresence.value)&&(!filterCar.value||(filterCar.value==='yes'?g.motor==='yes':g.motor==='no')));
+ inviteRows.innerHTML=a.length?a.map(g=>`<tr><td><b>${g.nom}</b> ${g.prenom}</td><td>${g.famille}${g.familyId?' 👪':''}</td><td>${g.cote}</td><td>${g.cat}</td><td>${g.sex}</td><td>${g.type}</td><td><span class="badge ${g.presence==='Confirmé'?'ok':g.presence==='Refusé'?'no':''}">${g.presence}</span></td><td>${g.motor==='yes'?'🚗 Oui':'🚶 Non'}</td><td><button class="btn light" onclick='openInvite(${JSON.stringify(g)})'>Modifier</button> ${g.familyId?`<button class="btn light" onclick="openFamily('${g.familyId}')">Famille</button>`:''} <button class="btn red" onclick='del(${JSON.stringify(g)})'>Supprimer</button></td></tr>`).join(''):`<tr><td colspan="9" class="empty">Aucun invité trouvé</td></tr>`;
+}
+
+function renderDashboard(){
+ const confirmed=guests.filter(g=>g.presence==='Confirmé'),ad=confirmed.filter(g=>g.type==='Adulte'),ch=confirmed.filter(g=>g.type==='Enfant');
+ const equivalent=confirmed.reduce((s,g)=>s+eq(g),0),cars=confirmed.filter(g=>g.motor==='yes'),non=confirmed.filter(g=>g.motor==='no');
+ const capacity=cars.reduce((s,g)=>s+(+g.seats||0),0);
+ metrics.innerHTML=[['👥','Invités confirmés',confirmed.length],['🧑','Adultes',ad.length],['🧒','Enfants',ch.length],['⚖️','Équivalents tables',equivalent],['🚗','Motorisés',cars.length],['🚶','Non motorisés',non.length],['💺','Places voitures',capacity],['🍽️','Tables',tablePlan.length]].map(x=>`<div class="card"><div class="muted">${x[0]} ${x[1]}</div><div class="metric">${x[2]}</div></div>`).join('');
+ dashHistory.innerHTML=history.slice(0,8).map(h=>`<div style="padding:8px 0;border-bottom:1px solid #eee"><b>${h.msg}</b><div class="muted">${h.date}</div></div>`).join('')||'<div class="empty">Aucune opération</div>';
+}
+function renderTransport(){
+ const conf=guests.filter(g=>g.presence==='Confirmé'),drivers=conf.filter(g=>g.motor==='yes'),pass=conf.filter(g=>g.motor==='no');
+ const cap=drivers.reduce((s,g)=>s+(+g.seats||0),0),assigned=new Set(guests.flatMap(g=>g.passengers||[]));
+ transportMetrics.innerHTML=[['Conducteurs',drivers.length],['Non motorisés',pass.length],['Places disponibles',cap],['Passagers affectés',assigned.size],['Sans solution',Math.max(0,pass.length-assigned.size)]].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');
+ driverRows.innerHTML=drivers.length?drivers.map(d=>{let p=(d.passengers||[]).map(id=>guests.find(g=>g.id===id)).filter(Boolean);return `<tr><td><b>${d.prenom} ${d.nom}</b></td><td>${d.famille}</td><td>${d.seats}</td><td>${p.map(x=>x.prenom+' '+x.nom).join(', ')||'—'}</td><td>${Math.max(0,d.seats-p.length)}</td><td><button class="btn light" onclick="assignPassengers('${d.id}')">Affecter</button></td></tr>`}).join(''):'<tr><td colspan="6" class="empty">Aucun conducteur</td></tr>';
+}
+function assignPassengers(driverId){
+ const d=guests.find(g=>g.id===driverId); const available=guests.filter(g=>g.presence==='Confirmé'&&g.motor==='no'&&g.id!==driverId);
+ let current=d.passengers||[], choices=available.map(g=>`${g.id}|${g.prenom} ${g.nom}`).join('\n');
+ let input=prompt(`Passagers actuels : ${current.length}/${d.seats}\\nEntrez les prénoms/noms séparés par des virgules parmi :\\n${choices.replaceAll('|',' — ')}`,current.map(id=>{let g=guests.find(x=>x.id===id);return g?g.prenom+' '+g.nom:''}).join(', '));
+ if(input===null)return;
+ let wanted=input.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean), selected=[];
+ for(const w of wanted){let g=available.find(x=>`${x.prenom} ${x.nom}`.toLowerCase()===w||x.prenom.toLowerCase()===w||x.nom.toLowerCase()===w);if(g&&!selected.includes(g.id))selected.push(g.id)}
+ if(selected.length>d.seats){alert('Capacité de la voiture dépassée.');return}
+ guests.forEach(x=>{if(x.id===d.id)x.passengers=selected;else if(x.motor==='no')x.passengers=(x.passengers||[]).filter(id=>!selected.includes(id))});
+ log(`Transport : ${d.prenom} ${d.nom} — ${selected.length} passager(s)`);save();renderAll();
+}
+function generateTables(){
+ const eligible=guests.filter(g=>g.presence==='Confirmé');
+ tablePlan=[]; let groups={};
+ eligible.forEach(g=>{let k=g.sex+'|'+g.cote+'|'+(g.familyId||g.famille);if(!groups[k])groups[k]=[];groups[k].push(g)});
+ let leftovers={};
+ Object.entries(groups).forEach(([k,arr])=>{let sex=k.split('|')[0],side=k.split('|')[1],family=k.split('|')[2];while(arr.length){let people=[],weight=0;while(arr.length&&weight+eq(arr[0])<=10){people.push(arr.shift());weight+=eq(people.at(-1))}let t={name:'',sex,side,people:people.map(x=>x.id),weight,passengers:[]};tablePlan.push(t)}})
+ // Merge small same-sex tables while capacity permits, preferring same side.
+ let changed=true;while(changed){changed=false;outer:for(let i=0;i<tablePlan.length;i++)for(let j=i+1;j<tablePlan.length;j++){let a=tablePlan[i],b=tablePlan[j];if(a.sex===b.sex&&a.weight+b.weight<=10&&(a.side===b.side||a.weight<=4||b.weight<=4)){a.people.push(...b.people);a.weight+=b.weight;tablePlan.splice(j,1);changed=true;break outer}}}
+ tablePlan.forEach((t,i)=>t.name=`${t.sex==='Homme'?'Table Hommes':'Table Femmes'} ${i+1}`);
+ save();log('Génération automatique du placement des tables');renderAll();
+}
+function clearTables(){if(confirm('Effacer le placement des tables ?')){tablePlan=[];save();log('Placement des tables effacé');renderAll()}}
+function renderTables(){
+ if(!tablePlan.length){tablesArea.innerHTML='<div class="card empty">Aucun placement. Cliquez sur « Générer automatiquement ».</div>';return}
+ tablesArea.innerHTML=tablePlan.map((t,i)=>{let ppl=t.people.map(id=>guests.find(g=>g.id===id)).filter(Boolean);return `<div class="card tablecard"><h3>🍽️ ${t.name}</h3><div class="muted">${t.side} • ${ppl.length} personne(s) • ${t.weight}/10 équivalents</div><div class="progress" style="margin:10px 0"><i style="width:${Math.min(100,t.weight*10)}%"></i></div>${ppl.map(g=>`<div class="person"><span>${g.prenom} ${g.nom}${g.type==='Enfant'?' 🧒':''}</span><span>${eq(g)}</span></div>`).join('')}</div>`}).join('');
+}
+function renderStats(){
+ const c=guests.filter(g=>g.presence==='Confirmé'), eqv=c.reduce((s,g)=>s+eq(g),0),families=[...new Set(c.map(g=>g.famille))];
+ statsGrid.innerHTML=[['Invités total',guests.length],['Confirmés',c.length],['En attente',guests.filter(g=>g.presence==='En attente').length],['Refusés',guests.filter(g=>g.presence==='Refusé').length],['Hommes',c.filter(g=>g.sex==='Homme').length],['Femmes',c.filter(g=>g.sex==='Femme').length],['Familles',families.length],['Équivalents tables',eqv]].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');
+}
+function renderHistory(){historyList.innerHTML=history.map(h=>`<div style="padding:10px 0;border-bottom:1px solid #eee"><b>${h.msg}</b><div class="muted">${h.date}</div></div>`).join('')||'<div class="empty">Aucune opération</div>'}
+
+function familyMembers(fid){return guests.filter(g=>g.familyId===fid)}
+function childTemplate(c={}){return `<div class="card child-row" style="padding:10px;margin-bottom:8px"><input type="hidden" class="child-id" value="${c.id||''}"><div class="form"><label>Nom<input class="child-nom" value="${c.nom||''} "></label><label>Prénom<input class="child-prenom" value="${c.prenom||''}"></label><label>Sexe<select class="child-sex"><option ${c.sex==='Homme'?'selected':''}>Homme</option><option ${c.sex==='Femme'?'selected':''}>Femme</option></select></label><label>Présence<select class="child-presence"><option ${c.presence==='Confirmé'||!c.presence?'selected':''}>Confirmé</option><option ${c.presence==='En attente'?'selected':''}>En attente</option><option ${c.presence==='Refusé'?'selected':''}>Refusé</option></select></label><div class="actions full" style="margin-top:5px"><button type="button" class="btn red" onclick="this.closest('.child-row').remove()">Supprimer l'enfant</button></div></div></div>`}
+function addChildRow(c={}){childrenRows.insertAdjacentHTML('beforeend',childTemplate(c))}
+function resetFamilyForm(){
+ familyIdField.value='';familyName.value='';familySide.value='Ma famille';familyCat.value='Famille';
+ principalId.value='';principalNom.value='';principalPrenom.value='';principalSex.value='Homme';principalPresence.value='Confirmé';principalMotor.value='yes';principalSeats.value=4;principalPhone.value='';
+ spouseId.value='';spouseNom.value='';spousePrenom.value='';spouseSex.value='Femme';spousePresence.value='Confirmé';spouseMotor.value='no';spouseSeats.value=4;spousePhone.value='';childrenRows.innerHTML='';
+}
+function openFamily(fid=null){
+ resetFamilyForm();
+ if(fid){
+  const members=familyMembers(fid); if(!members.length){alert('Famille introuvable.');return}
+  const p=members.find(g=>g.familyRole==='principal')||members[0],s=members.find(g=>g.familyRole==='conjoint'),cs=members.filter(g=>g.familyRole==='enfant');
+  familyIdField.value=fid;familyName.value=p.famille||'';familySide.value=p.cote||'Ma famille';familyCat.value=p.cat||'Famille';
+  principalId.value=p.id;principalNom.value=p.nom;principalPrenom.value=p.prenom;principalSex.value=p.sex;principalPresence.value=p.presence;principalMotor.value=p.motor||'yes';principalSeats.value=p.seats||4;principalPhone.value=p.phone||'';
+  if(s){spouseId.value=s.id;spouseNom.value=s.nom;spousePrenom.value=s.prenom;spouseSex.value=s.sex;spousePresence.value=s.presence;spouseMotor.value=s.motor||'no';spouseSeats.value=s.seats||4;spousePhone.value=s.phone||''}
+  cs.forEach(addChildRow);
+  familyModalTitle.textContent='Modifier la famille';
+ }else familyModalTitle.textContent='Ajouter une famille';
+ familyModal.classList.add('open');
+}
+function closeFamily(){familyModal.classList.remove('open')}
+function cleanFamilyPassengerRefs(ids){guests.forEach(g=>{if(g.passengers)g.passengers=g.passengers.filter(x=>!ids.includes(x))})}
+function saveFamilyTransport(fid){
+ const members=familyMembers(fid),confirmed=members.filter(g=>g.presence==='Confirmé');
+ let driver=confirmed.find(g=>g.familyRole==='principal'&&g.motor==='yes');
+ if(!driver)driver=confirmed.find(g=>g.familyRole==='conjoint'&&g.motor==='yes');
+ const passengerIds=confirmed.filter(g=>g.motor==='no').map(g=>g.id);
+ cleanFamilyPassengerRefs(passengerIds);
+ if(!driver){return {assigned:0,total:passengerIds.length,driver:null}}
+ const seats=Math.max(0,+driver.seats||0),selected=passengerIds.slice(0,seats);
+ driver.passengers=selected;
+ return {assigned:selected.length,total:passengerIds.length,driver,overflow:Math.max(0,passengerIds.length-selected.length)};
+}
+document.getElementById('familyForm').onsubmit=e=>{
+ e.preventDefault();
+ const fid=familyIdField.value||id(),name=familyName.value.trim();
+ if(!name){alert('Veuillez renseigner le nom de la famille.');return}
+ if(!principalNom.value.trim()||!principalPrenom.value.trim()){alert('Veuillez renseigner le nom et le prénom de la personne principale.');return}
+ if((spouseNom.value.trim()&&!spousePrenom.value.trim())||(!spouseNom.value.trim()&&spousePrenom.value.trim())){alert('Pour le conjoint(e), renseignez le nom et le prénom.');return}
+ let invalidChild=false;
+ document.querySelectorAll('.child-row').forEach(row=>{const n=row.querySelector('.child-nom').value.trim(),p=row.querySelector('.child-prenom').value.trim();if((n&&!p)||(!n&&p))invalidChild=true});
+ if(invalidChild){alert('Pour chaque enfant, renseignez le nom et le prénom, ou supprimez la ligne.');return}
+ const oldIds=familyMembers(fid).map(g=>g.id); cleanFamilyPassengerRefs(oldIds);
+ guests=guests.filter(g=>g.familyId!==fid);
+ const base={famille:name,cote:familySide.value,cat:familyCat.value,familyId:fid};
+ const principal={...base,id:principalId.value||id(),familyRole:'principal',nom:principalNom.value.trim(),prenom:principalPrenom.value.trim(),sex:principalSex.value,type:'Adulte',presence:principalPresence.value,motor:principalMotor.value,seats:+principalSeats.value||0,phone:principalPhone.value.trim(),notes:''};
+ const members=[principal];
+ if(spouseNom.value.trim()||spousePrenom.value.trim()){
+  members.push({...base,id:spouseId.value||id(),familyRole:'conjoint',nom:spouseNom.value.trim(),prenom:spousePrenom.value.trim(),sex:spouseSex.value,type:'Adulte',presence:spousePresence.value,motor:spouseMotor.value,seats:+spouseSeats.value||0,phone:spousePhone.value.trim(),notes:''});
+ }
+ document.querySelectorAll('.child-row').forEach(row=>{const n=row.querySelector('.child-nom').value.trim(),p=row.querySelector('.child-prenom').value.trim();if(!n&&!p)return;members.push({...base,id:row.querySelector('.child-id').value||id(),familyRole:'enfant',nom:n,prenom:p,sex:row.querySelector('.child-sex').value,type:'Enfant',presence:row.querySelector('.child-presence').value,motor:'no',seats:0,phone:'',notes:''})});
+ guests.push(...members); const tr=saveFamilyTransport(fid); save();
+ const wasEdit=!!familyIdField.value;
+ let msg=`${wasEdit?'Modification':'Création'} de la famille : ${name} (${members.length} membre(s))`;
+ if(tr.total){msg+=tr.driver?` — transport automatique : ${tr.assigned}/${tr.total} passager(s) avec ${tr.driver.prenom} ${tr.driver.nom}`:' — aucun conducteur familial disponible'}
+ log(msg); closeFamily(); renderAll();
+ if(tr.overflow)alert(`La famille « ${name} » compte ${tr.total} passager(s) non motorisé(s), mais le conducteur familial n'a que ${tr.driver.seats} place(s). ${tr.overflow} passager(s) restent sans solution.`);
+};
+
+
+function openConfig(){const c=getConfig();sbUrl.value=c.url||'';sbKey.value=c.key||'';configModal.classList.add('open')}
+function closeConfig(){configModal.classList.remove('open')}
+function saveConfig(){const url=sbUrl.value.trim(),key=sbKey.value.trim();if(!url||!key){alert('URL et clé anon obligatoires.');return}localStorage.setItem(CFG,JSON.stringify({url,key}));if(initSupabase()){authMsg.textContent='Configuration enregistrée. Vous pouvez vous connecter.';closeConfig()}else authMsg.textContent='Configuration invalide.'}
+async function signIn(){if(!initSupabase()){authMsg.textContent='Configurez Supabase avant de vous connecter.';return}authMsg.textContent='Connexion...';const {data,error}=await sb.auth.signInWithPassword({email:authEmail.value.trim(),password:authPassword.value});if(error){authMsg.textContent=error.message;return}await afterLogin(data.user)}
+async function signUp(){if(!initSupabase()){authMsg.textContent='Configurez Supabase avant de créer le compte.';return}authMsg.textContent='Création du compte...';const {data,error}=await sb.auth.signUp({email:authEmail.value.trim(),password:authPassword.value});if(error){authMsg.textContent=error.message;return}if(data.user&&!data.session){authMsg.textContent='Compte créé. Vérifiez votre email puis connectez-vous.';return}if(data.user)await afterLogin(data.user)}
+async function signOut(){if(sb)await sb.auth.signOut();currentUser=null;setOnline(false);authScreen.style.display='flex'}
+async function afterLogin(user){currentUser=user;authScreen.style.display='none';setOnline(true);await loadOnlineData();renderAll();}
+async function loadOnlineData(){if(!sb||!currentUser)return;const {data,error}=await sb.from('wedding_data').select('*').eq('user_id',currentUser.id).maybeSingle();if(error){console.error(error);alert('Erreur de lecture de la base : '+error.message);return}
+ if(data){guests=Array.isArray(data.guests)?data.guests:[];history=Array.isArray(data.history)?data.history:[];tablePlan=Array.isArray(data.table_plan)?data.table_plan:[];localStorage.setItem(KEY,JSON.stringify(guests));localStorage.setItem(HIST,JSON.stringify(history));localStorage.setItem(TABLES,JSON.stringify(tablePlan));}
+ else if(localBackup.guests.length||localBackup.history.length||localBackup.tablePlan.length){guests=localBackup.guests;history=localBackup.history;tablePlan=localBackup.tablePlan;await syncAll();alert('Les données locales existantes ont été importées dans votre espace en ligne.');}
+ else {save()}}
+async function boot(){initSupabase();if(!sb){setOnline(false);return}const {data}=await sb.auth.getSession();if(data.session)await afterLogin(data.session.user);else setOnline(false)}
+
+function renderAll(){renderDashboard();renderInvites();renderTransport();renderTables();renderStats();renderHistory()}
+boot();
+
+</script>
+</body></html>
