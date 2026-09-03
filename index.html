@@ -229,10 +229,35 @@ document.getElementById('inviteForm').onsubmit=e=>{
  save();closeModal();renderAll();
 };
 function del(g){if(confirm(`Supprimer ${g.prenom} ${g.nom} ?\\nCette action est enregistrée dans l'historique.`)){guests=guests.filter(x=>x.id!==g.id);tablePlan=tablePlan.map(t=>({...t,people:t.people.filter(p=>p!==g.id)}));save();log(`Suppression : ${g.prenom} ${g.nom}`);renderAll()}}
+function normalizedFamilyName(v){return String(v||'').trim().toLowerCase().replace(/\s+/g,' ')}
+function findRecoverableFamilyId(g){
+ if(g.familyId)return g.familyId;
+ const name=normalizedFamilyName(g.famille);if(!name)return null;
+ const match=guests.find(x=>x.id!==g.id&&x.familyId&&normalizedFamilyName(x.famille)===name&&x.cote===g.cote);
+ return match?match.familyId:null;
+}
+function openGuestFamily(guestId){
+ const g=guests.find(x=>x.id===guestId);if(!g)return;
+ let fid=g.familyId||findRecoverableFamilyId(g);
+ if(!fid){
+  fid=id();g.familyId=fid;g.familyRole='principal';
+  log(`Réparation du lien famille : ${g.prenom} ${g.nom}`);save();renderAll();openFamily(fid);return;
+ }
+ if(!g.familyId){
+  const members=familyMembers(fid);
+  g.familyId=fid;
+  if(g.type==='Enfant')g.familyRole='enfant';
+  else if(!members.some(x=>x.familyRole==='principal'))g.familyRole='principal';
+  else if(!members.some(x=>x.familyRole==='conjoint'))g.familyRole='conjoint';
+  else g.familyRole='conjoint';
+  log(`Lien famille restauré : ${g.prenom} ${g.nom}`);save();renderAll();
+ }
+ openFamily(fid);
+}
 function renderInvites(){
  let a=[...guests],q=(search.value||'').toLowerCase();
  a=a.filter(g=>(!q||`${g.nom} ${g.prenom} ${g.famille}`.toLowerCase().includes(q))&&(!filterSide.value||g.cote===filterSide.value)&&(!filterCat.value||g.cat===filterCat.value)&&(!filterType.value||g.type===filterType.value)&&(!filterSex.value||g.sex===filterSex.value)&&(!filterPresence.value||g.presence===filterPresence.value)&&(!filterCar.value||(filterCar.value==='yes'?g.motor==='yes':g.motor==='no')));
- inviteRows.innerHTML=a.length?a.map(g=>`<tr><td><b>${g.nom}</b> ${g.prenom}</td><td>${g.famille}${g.familyId?' 👪':''}</td><td>${g.cote}</td><td>${g.cat}</td><td>${g.sex}</td><td>${g.type}</td><td><span class="badge ${g.presence==='Confirmé'?'ok':g.presence==='Refusé'?'no':''}">${g.presence}</span></td><td>${g.motor==='yes'?'🚗 Oui':'🚶 Non'}</td><td>${g.phone?`<button class="btn light" onclick="openWhatsAppForGuest('${g.id}')">💬</button> ${g.messageSentAt?'✅':''}`:'—'}</td><td><button class="btn light" onclick='openInvite(${JSON.stringify(g)})'>Modifier</button> ${g.familyId?`<button class="btn light" onclick="openFamily('${g.familyId}')">Famille</button>`:''} <button class="btn red" onclick='del(${JSON.stringify(g)})'>Supprimer</button></td></tr>`).join(''):`<tr><td colspan="10" class="empty">Aucun invité trouvé</td></tr>`;
+ inviteRows.innerHTML=a.length?a.map(g=>`<tr><td><b>${g.nom}</b> ${g.prenom}</td><td>${g.famille}${g.familyId?' 👪':''}</td><td>${g.cote}</td><td>${g.cat}</td><td>${g.sex}</td><td>${g.type}</td><td><span class="badge ${g.presence==='Confirmé'?'ok':g.presence==='Refusé'?'no':''}">${g.presence}</span></td><td>${g.motor==='yes'?'🚗 Oui':'🚶 Non'}</td><td>${g.phone?`<button class="btn light" onclick="openWhatsAppForGuest('${g.id}')">💬</button> ${g.messageSentAt?'✅':''}`:'—'}</td><td><button class="btn light" onclick='openInvite(${JSON.stringify(g)})'>Modifier</button> ${(g.familyId||g.cat==='Famille')?`<button class="btn light" onclick="openGuestFamily('${g.id}')">Famille</button>`:''} <button class="btn red" onclick='del(${JSON.stringify(g)})'>Supprimer</button></td></tr>`).join(''):`<tr><td colspan="10" class="empty">Aucun invité trouvé</td></tr>`;
 }
 
 function renderDashboard(){
