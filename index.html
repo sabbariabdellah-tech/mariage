@@ -58,7 +58,65 @@
 }
 
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* V4.4 - correctif menu mobile (ordre CSS) */
+@media (max-width:600px){
+  .mobile-bar{
+    display:flex !important;
+    visibility:visible !important;
+    opacity:1 !important;
+    position:fixed !important;
+    top:0 !important;
+    left:0 !important;
+    right:0 !important;
+    z-index:1300 !important;
+  }
+  .mobile-menu-btn{
+    display:inline-flex !important;
+    align-items:center;
+    justify-content:center;
+    width:44px;
+    height:44px;
+    min-width:44px;
+    cursor:pointer;
+  }
+  .side{
+    display:block !important;
+    position:fixed !important;
+    top:0 !important;
+    left:0 !important;
+    bottom:0 !important;
+    width:min(82vw,280px) !important;
+    max-width:280px !important;
+    transform:translateX(-105%) !important;
+    transition:transform .22s ease !important;
+    z-index:1400 !important;
+    overflow-y:auto !important;
+  }
+  .side.mobile-open{
+    transform:translateX(0) !important;
+  }
+  .mobile-overlay{
+    z-index:1350 !important;
+  }
+  .main{
+    margin-left:0 !important;
+    padding-top:calc(64px + env(safe-area-inset-top)) !important;
+  }
+  .nav button{
+    display:block !important;
+    width:100% !important;
+    font-size:14px !important;
+    text-align:left !important;
+  }
+  .nav button:first-letter{
+    font-size:inherit !important;
+  }
+  .logo{
+    font-size:18px !important;
+  }
+}
+</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 #authScreen{position:fixed;inset:0;background:#20243a;display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999}
 .authbox{background:#fff;width:min(430px,100%);border-radius:18px;padding:26px;box-shadow:0 20px 60px #0005}.authbox h2{margin:0 0 6px}.authbox p{color:#6f7588;font-size:13px}.authbox input{width:100%;padding:12px;border:1px solid #d9dce5;border-radius:9px;margin:6px 0 12px}.auth-actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:12px;margin-top:10px;color:#687085}.onlinebar{position:fixed;right:18px;bottom:18px;background:#fff;border:1px solid #ddd;border-radius:10px;padding:8px 12px;box-shadow:0 5px 20px #0001;font-size:12px;z-index:20}.onlinebar b{color:#267343}.logout{margin-left:8px;border:0;background:none;cursor:pointer;text-decoration:underline}
