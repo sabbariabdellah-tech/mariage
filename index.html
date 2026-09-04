@@ -395,7 +395,47 @@ function persistTableNamesIfNeeded(){
 }
 
 function staffTotal(){ensureAppSettings();return messageSettings.staff.reduce((a,s)=>a+(+s.count||0),0)}
-function buildStaffTables(){ensureAppSettings();const cap=appRules().staffCapacity,queue=[];messageSettings.staff.forEach(s=>{let n=Math.max(0,+s.count||0);if(n)queue.push({category:s.category,count:n})});const out=[];let idx=1,cur={name:`Table Staff ${idx}`,count:0,items:[]};for(const item of queue){let remaining=item.count;while(remaining>0){let room=cap-cur.count,take=Math.min(room,remaining);cur.items.push({category:item.category,count:take});cur.count+=take;remaining-=take;if(cur.count===cap){out.push(cur);idx++;cur={name:`Table Staff ${idx}`,count:0,items:[]}}}}if(cur.count)out.push(cur);return out}
+function buildStaffTables(){
+ ensureAppSettings();
+ const cap=appRules().staffCapacity;
+ const fullTables=[];
+ const remainders=[];
+
+ messageSettings.staff.forEach(s=>{
+   let remaining=Math.max(0,+s.count||0);
+   const category=s.category;
+
+   while(remaining>=cap){
+     fullTables.push({name:'',count:cap,items:[{category,count:cap}]});
+     remaining-=cap;
+   }
+   if(remaining>0)remainders.push({category,count:remaining});
+ });
+
+ remainders.sort((a,b)=>b.count-a.count);
+ const mixed=[];
+ remainders.forEach(item=>{
+   let best=-1,bestSpace=Infinity;
+   mixed.forEach((tab,i)=>{
+     const space=cap-tab.count;
+     if(item.count<=space && space-item.count<bestSpace){
+       best=i;
+       bestSpace=space-item.count;
+     }
+   });
+   if(best<0){
+     mixed.push({name:'',count:item.count,items:[{...item}]});
+   }else{
+     mixed[best].items.push({...item});
+     mixed[best].count+=item.count;
+   }
+ });
+
+ const out=[...fullTables,...mixed];
+ out.forEach((tab,i)=>tab.name=`Table Staff ${i+1}`);
+ return out;
+}
+
 function renderStaff(){if(!document.getElementById('staffCards'))return;ensureAppSettings();const total=staffTotal(),tabs=buildStaffTables();staffMetrics.innerHTML=[['Personnel staff',total],['Catégories',messageSettings.staff.length],['Tables staff',tabs.length],['Places libres',tabs.length?tabs.length*appRules().staffCapacity-total:0]].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');staffCards.innerHTML=messageSettings.staff.length?messageSettings.staff.map(s=>`<div class="card staff-card"><div class="muted">Catégorie</div><h3>${escapeHtml(s.category)}</h3><div class="metric">${+s.count||0}</div><div class="muted">personne(s)</div><div class="actions"><button class="btn light" onclick="openStaffModal('${s.id}')">Modifier</button><button class="btn red" onclick="deleteStaff('${s.id}')">Supprimer</button></div></div>`).join(''):'<div class="card empty">Aucune catégorie de staff</div>'}
 function openStaffModal(staffIdVal=null){ensureAppSettings();const s=messageSettings.staff.find(x=>x.id===staffIdVal);staffId.value=s?.id||'';staffCategory.value=s?.category||'';staffCount.value=s?.count??1;staffModalTitle.textContent=s?'Modifier le staff':'Ajouter une catégorie de staff';staffModal.classList.add('open')}
 function closeStaffModal(){staffModal.classList.remove('open')}
