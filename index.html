@@ -375,7 +375,25 @@ function closeTableEditModal(){tableEditModal.classList.remove('open');activeTab
 function renderTableEditChoices(){const t=tablePlan[activeTableIndex];if(!t)return;const q=(tableEditSearch.value||'').toLowerCase();const w=tableDraft.map(id=>guests.find(g=>g.id===id)).filter(Boolean).reduce((a,g)=>a+eq(g),0);tableEditCapacity.innerHTML=`Occupation sélectionnée : <b>${w}/${appRules().tableCapacity}</b>${w>appRules().tableCapacity?' <span class="warning">Capacité dépassée</span>':''}`;let list=guests.filter(g=>g.presence==='Confirmé'&&seatingSex(g)===t.sex&&!tablePlan.find(x=>x.type==='royal'&&(x.people||[]).includes(g.id))&&(!q||`${g.prenom} ${g.nom} ${g.famille}`.toLowerCase().includes(q)));tableEditChoices.innerHTML=list.map(g=>{const other=findGuestTable(g.id);return `<label class="choice-row"><input type="checkbox" ${tableDraft.includes(g.id)?'checked':''} onchange="toggleTableChoice('${g.id}',this.checked)"><div class="grow"><b>${escapeHtml(g.prenom+' '+g.nom)}</b>${isYoungChild(g)?' <span class="badge">avec maman</span>':''}<div class="muted">${escapeHtml(g.famille)}${other&&other!==t?' • actuellement '+escapeHtml(other.name):''}</div></div></label>`}).join('')||'<div class="empty">Aucun invité disponible</div>'}
 function toggleTableChoice(id,checked){const prev=[...tableDraft];if(checked&&!tableDraft.includes(id))tableDraft.push(id);if(!checked)tableDraft=tableDraft.filter(x=>x!==id);const w=tableDraft.map(id=>guests.find(g=>g.id===id)).filter(Boolean).reduce((a,g)=>a+eq(g),0);if(w>appRules().tableCapacity){tableDraft=prev;alert('Maximum '+appRules().tableCapacity+' équivalents par table.')}renderTableEditChoices()}
 function saveTableEdit(){const t=tablePlan[activeTableIndex];if(!t)return;const w=tableDraft.map(id=>guests.find(g=>g.id===id)).filter(Boolean).reduce((a,g)=>a+eq(g),0);if(w>appRules().tableCapacity){alert('Table trop chargée.');return}tablePlan.forEach(x=>{if(x!==t)x.people=(x.people||[]).filter(id=>!tableDraft.includes(id))});t.people=[...tableDraft];enforceYoungChildrenWithMothers();renumberStandardTables();const over=tablePlan.filter(x=>recalcTable(x)>10);save();log(`Modification manuelle : ${t.name}`);closeTableEditModal();renderAll();if(over.length)alert('Attention : la règle enfant avec sa maman provoque un dépassement sur : '+over.map(x=>x.name).join(', '))}
-function renumberStandardTables(){let h=0,f=0;standardTables().forEach(t=>{if(t.sex==='Homme')t.name=`Table Hommes ${++h}`;else t.name=`Table Femmes ${++f}`})}
+function renumberStandardTables(){
+ let h=0,f=0;
+ standardTables().forEach(t=>{
+   const sx=String(t.sex||'').toLowerCase();
+   if(sx.startsWith('h')){
+     t.sex='Homme';
+     t.name=`Hommes ${++h}`;
+   }else{
+     t.sex='Femme';
+     t.name=`Femmes ${++f}`;
+   }
+ });
+}
+function persistTableNamesIfNeeded(){
+ const snapshot=JSON.stringify(tablePlan);
+ localStorage.setItem(TABLES,snapshot);
+ scheduleSync();
+}
+
 function staffTotal(){ensureAppSettings();return messageSettings.staff.reduce((a,s)=>a+(+s.count||0),0)}
 function buildStaffTables(){ensureAppSettings();const cap=appRules().staffCapacity,queue=[];messageSettings.staff.forEach(s=>{let n=Math.max(0,+s.count||0);if(n)queue.push({category:s.category,count:n})});const out=[];let idx=1,cur={name:`Table Staff ${idx}`,count:0,items:[]};for(const item of queue){let remaining=item.count;while(remaining>0){let room=cap-cur.count,take=Math.min(room,remaining);cur.items.push({category:item.category,count:take});cur.count+=take;remaining-=take;if(cur.count===cap){out.push(cur);idx++;cur={name:`Table Staff ${idx}`,count:0,items:[]}}}}if(cur.count)out.push(cur);return out}
 function renderStaff(){if(!document.getElementById('staffCards'))return;ensureAppSettings();const total=staffTotal(),tabs=buildStaffTables();staffMetrics.innerHTML=[['Personnel staff',total],['Catégories',messageSettings.staff.length],['Tables staff',tabs.length],['Places libres',tabs.length?tabs.length*appRules().staffCapacity-total:0]].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');staffCards.innerHTML=messageSettings.staff.length?messageSettings.staff.map(s=>`<div class="card staff-card"><div class="muted">Catégorie</div><h3>${escapeHtml(s.category)}</h3><div class="metric">${+s.count||0}</div><div class="muted">personne(s)</div><div class="actions"><button class="btn light" onclick="openStaffModal('${s.id}')">Modifier</button><button class="btn red" onclick="deleteStaff('${s.id}')">Supprimer</button></div></div>`).join(''):'<div class="card empty">Aucune catégorie de staff</div>'}
@@ -499,7 +517,7 @@ function generateTables(){
 }
 function clearTables(){if(confirm('Effacer les tables ordinaires ? La sélection de la Table Royale sera conservée.')){const r=ensureRoyalTable();tablePlan=[r];save();log('Placement des tables ordinaires effacé');renderAll()}}
 function renderTables(){
- ensureAppSettings();const royal=ensureRoyalTable();recalcTable(royal);const std=standardTables();std.forEach(recalcTable);const h=std.filter(t=>t.sex==='Homme').length,f=std.filter(t=>t.sex==='Femme').length,staffTabs=buildStaffTables();
+ ensureAppSettings();const royal=ensureRoyalTable();recalcTable(royal);renumberStandardTables();persistTableNamesIfNeeded();const std=standardTables();std.forEach(recalcTable);const h=std.filter(t=>t.sex==='Homme').length,f=std.filter(t=>t.sex==='Femme').length,staffTabs=buildStaffTables();
  tableCounts.innerHTML=`<div class="smallmetric"><b>${h}</b>Tables hommes</div><div class="smallmetric"><b>${f}</b>Tables femmes</div><div class="smallmetric"><b>${coupleCount()?1:0}</b>Table Royale</div><div class="smallmetric"><b>${staffTabs.length}</b>Tables staff</div>`;
  const coupleHtml=[messageSettings.couple.groom,messageSettings.couple.bride].filter(Boolean).map(n=>`<div class="person"><span>💍 ${escapeHtml(n)}</span><span>1</span></div>`).join('');const rp=(royal.people||[]).map(id=>guests.find(g=>g.id===id)).filter(Boolean);
  royalTableArea.innerHTML=`<div class="card tablecard royal-card"><h3>👑 Table Royale</h3><div class="muted">Mixte • ${rp.length+coupleCount()} personne(s) • ${royal.weight}/${appRules().royalCapacity} équivalents</div><div class="progress" style="margin:10px 0"><i style="width:${Math.min(100,royal.weight/appRules().royalCapacity*100)}%"></i></div>${coupleHtml}${rp.map(g=>`<div class="person"><span>${escapeHtml(g.prenom+' '+g.nom)}${isYoungChild(g)?' 🧒':''}</span><span>${eq(g)}</span></div>`).join('')}<div class="actions"><button class="btn light" onclick="openRoyalTableModal()">Modifier la Table Royale</button></div></div>`;
